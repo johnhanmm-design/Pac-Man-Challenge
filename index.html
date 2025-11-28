@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -505,7 +506,7 @@
                 <div><span style="margin-right: 8px;">🏁</span> 试试全程挑战，从第 1 关跑到第 20 关，冲击你的最佳纪录！</div>
             </div>
             <button onclick="game.showMenu()">知道了！</button>
-            <div class="credit-footer">制作：羊村第一羊</div>
+            <div class="credit-footer">制作：羊村第一羊 | v1.1.0</div>
         </div>
 
         <!-- 4. 暂停菜单 -->
@@ -1471,37 +1472,74 @@
                     }
                 });
 
-                // Touch Controls (Swipe)
+                // Touch Controls (Continuous Swipe for better responsiveness)
                 let tsX = 0, tsY = 0;
+                const minSwipeDist = 20; // 触发滑动的最小距离
+
                 this.canvas.addEventListener('touchstart', (e) => {
-                    tsx = e.touches[0].clientX;
-                    tsy = e.touches[0].clientY;
-                    e.preventDefault(); // 防止页面滚动
+                    if (e.touches.length > 1) return; // 忽略多指
+                    tsX = e.touches[0].clientX;
+                    tsY = e.touches[0].clientY;
+                    // 不在此处 preventDefault，有些浏览器可能需要它来判定是否是滚动
                 }, {passive: false});
 
                 this.canvas.addEventListener('touchmove', (e) => {
-                    e.preventDefault(); // 防止页面滚动
-                }, {passive: false});
-
-                this.canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault(); // 阻止页面滚动
                     if (this.state !== 'PLAYING') return;
-                    const tex = e.changedTouches[0].clientX;
-                    const tey = e.changedTouches[0].clientY;
-                    const dx = tex - tsx;
-                    const dy = tey - tsy;
 
-                    // 简单的手势识别：水平 vs 垂直
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        if (Math.abs(dx) > 20) { // 阈值
+                    const curX = e.touches[0].clientX;
+                    const curY = e.touches[0].clientY;
+                    const dx = curX - tsX;
+                    const dy = curY - tsY;
+
+                    // 实时检测滑动
+                    if (Math.abs(dx) > minSwipeDist || Math.abs(dy) > minSwipeDist) {
+                        // 判断主方向
+                        if (Math.abs(dx) > Math.abs(dy)) {
+                            // 水平移动
                             this.player.nextDir = dx > 0 ? {x: 1, y: 0} : {x: -1, y: 0};
-                        }
-                    } else {
-                        if (Math.abs(dy) > 20) {
+                        } else {
+                            // 垂直移动
                             this.player.nextDir = dy > 0 ? {x: 0, y: 1} : {x: 0, y: -1};
                         }
+
+                        // 关键优化：重置起点，支持连续滑动转向 (例如画 L 型)
+                        // 这样手指不用离开屏幕也能连续改变方向
+                        tsX = curX;
+                        tsY = curY;
+                    }
+                }, {passive: false});
+                
+                // Mouse Controls (Click to set direction)
+                this.canvas.addEventListener('mousedown', (e) => {
+                    if (this.state !== 'PLAYING') return;
+                    
+                    const rect = this.canvas.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    const mouseY = e.clientY - rect.top;
+
+                    // 将像素坐标转换为游戏地图的瓦片坐标
+                    const targetTileX = Math.floor(mouseX / TILE_SIZE);
+                    const targetTileY = Math.floor(mouseY / TILE_SIZE);
+
+                    const playerTileX = Math.round(this.player.x);
+                    const playerTileY = Math.round(this.player.y);
+
+                    const dx = targetTileX - playerTileX;
+                    const dy = targetTileY - playerTileY;
+
+                    // 判断主要方向
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        // 水平方向优先
+                        if (dx > 0) this.player.nextDir = {x: 1, y: 0}; // 右
+                        else if (dx < 0) this.player.nextDir = {x: -1, y: 0}; // 左
+                    } else {
+                        // 垂直方向优先
+                        if (dy > 0) this.player.nextDir = {x: 0, y: 1}; // 下
+                        else if (dy < 0) this.player.nextDir = {x: 0, y: -1}; // 上
                     }
                     e.preventDefault();
-                }, {passive: false});
+                });
             }
         }
 
