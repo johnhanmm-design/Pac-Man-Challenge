@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAC-MAN: Modern Remaster</title>
+    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-light: #f4f7f6;
+            --game-bg: #1e293b;
+            --wall-color: #334155;
+            --accent: #3b82f6;
+            --text-main: #1e293b;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: var(--text-main);
+            font-family: 'Varela Round', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #game-wrapper {
+            position: relative;
+            padding: 20px;
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 
+                0 20px 50px rgba(0,0,0,0.1), 
+                0 4px 12px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 700px; /* 固定宽度 */
+        }
+
+        canvas {
+            background-color: var(--game-bg);
+            border-radius: 16px;
+            display: block;
+            cursor: default;
+        }
+
+        /* HUD */
+        #hud {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 20px;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+
+        .stat-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #94a3b8;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+        .stat-subvalue {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 2px;
+            letter-spacing: 0.5px;
+        }
+
+        /* 暂停按钮 (整合进 HUD) */
+        #pause-btn {
+            position: relative; /* 不再绝对定位 */
+            background: #f1f5f9;
+            border: 2px solid #e2e8f0;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            color: #64748b;
+            font-size: 16px;
+            cursor: pointer;
+            display: none; /* JS 控制显示 */
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            margin-left: 15px; /* 与 Level 拉开距离 */
+            box-shadow: none;
+            padding: 0; /* 覆盖通用按钮的内边距，保持方形尺寸 */
+            gap: 0;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        #pause-btn svg {
+            width: 20px;
+            height: 20px;
+            pointer-events: none; /* 防止点击事件被 SVG 捕获 */
+        }
+        #pause-btn:hover {
+            background: #fff;
+            border-color: #3b82f6;
+            color: #3b82f6;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
+        }
+
+        /* 统一弹窗样式 */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95); /* 不透明度高一点，作为主界面 */
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            z-index: 50;
+            border-radius: 24px;
+            padding: 40px;
+            box-sizing: border-box;
+        }
+
+        .overlay.glass {
+            background: rgba(255, 255, 255, 0.8); /* 游戏内弹窗半透明 */
+        }
+
+        .title {
+            font-size: 56px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -2px;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: #64748b;
+            margin-bottom: 40px;
+            line-height: 1.6;
+            max-width: 400px;
+        }
+
+        /* 菜单装饰动画 */
+        .menu-decoration {
+            position: relative;
+            width: 200px;
+            height: 100px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .giant-pacman {
+            width: 60px;
+            height: 60px;
+            background: #fbbf24;
+            border-radius: 50%;
+            position: relative;
+            clip-path: polygon(100% 0%, 100% 100%, 50% 50%, 0% 100%, 0% 0%); /* 初始形状 */
+            animation: chomp 0.6s infinite alternate linear;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.6);
+        }
+
+        .floating-ghost {
+            width: 40px;
+            height: 40px;
+            margin: 0 10px;
+            border-radius: 50% 50% 0 0;
+            position: relative;
+            animation: floatGhost 2s infinite ease-in-out;
+        }
+        .floating-ghost::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background: inherit;
+            mask: radial-gradient(circle at 5px 0, transparent 5px, black 5.5px) repeat-x;
+            mask-size: 10px 10px;
+            -webkit-mask: radial-gradient(circle at 5px 0, transparent 5px, black 5.5px) repeat-x;
+            -webkit-mask-size: 10px 10px;
+        }
+        /* 鬼魂眼睛 */
+        .floating-ghost::before {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 8px;
+            width: 8px;
+            height: 8px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 16px 0 0 #fff; /* 第二只眼 */
+        }
+
+        @keyframes chomp {
+            0% { clip-path: polygon(100% 0%, 100% 100%, 50% 50%, 0% 100%, 0% 0%); transform: rotate(0deg); }
+            100% { clip-path: polygon(100% 20%, 100% 80%, 50% 50%, 0% 100%, 0% 0%); transform: rotate(0deg); } 
+            /* 这里简化了clip-path模拟嘴巴开合，稍微有点抽象但够用 */
+        }
+        /* 更完美的 CSS 嘴巴动画其实是用 conic-gradient，但 clip-path 更简单 */
+        /* 让我们用一个更简单的 CSS 吃豆人实现：利用 border */
+        .giant-pacman-v2 {
+            width: 0; 
+            height: 0; 
+            border-right: 30px solid transparent; 
+            border-top: 30px solid #fbbf24; 
+            border-left: 30px solid #fbbf24; 
+            border-bottom: 30px solid #fbbf24; 
+            border-radius: 30px; 
+            animation: chomp-v2 0.4s infinite alternate;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.6);
+        }
+        @keyframes chomp-v2 {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(45deg); border-right: 30px solid transparent; } /* 这里的动画有点难做完美，还是用 rotate + clip-path 组合 */
+        }
+
+        /* 最终方案：SVG 或者 Canvas 其实最好，但 CSS 也能做 */
+        .css-pacman {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: conic-gradient(#fbbf24 30deg, #fbbf24 330deg, transparent 330deg, transparent 360deg);
+            animation: bite 0.5s infinite alternate;
+        }
+        @keyframes bite {
+            0% { background: conic-gradient(#fbbf24 30deg, #fbbf24 330deg, transparent 330deg, transparent 360deg); transform: rotate(0deg); }
+            100% { background: conic-gradient(#fbbf24 0deg, #fbbf24 360deg, transparent 360deg, transparent 360deg); transform: rotate(0deg); }
+        }
+
+        @keyframes floatGhost {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* 按钮组 */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 250px;
+        }
+
+        button {
+            font-family: 'Varela Round', sans-serif;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        button:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        button.secondary {
+            background: #e2e8f0;
+            color: #475569;
+            box-shadow: none;
+        }
+        button.secondary:hover {
+            background: #cbd5e1;
+        }
+
+        /* 关卡选择网格 */
+        #level-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        .level-btn {
+            width: 50px;
+            height: 50px;
+            padding: 0;
+            font-size: 18px;
+            background: #e2e8f0;
+            color: #64748b;
+            box-shadow: none;
+        }
+        .level-btn.locked {
+            background: #f1f5f9;
+            color: #cbd5e1;
+            cursor: not-allowed;
+        }
+        .level-btn:not(.locked):hover {
+            background: #3b82f6;
+            color: white;
+        }
+
+        /* 规则说明 */
+        .rules-list {
+            text-align: left;
+            font-size: 14px;
+            color: #475569;
+            margin-bottom: 30px;
+            line-height: 2;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            width: 100%;
+        }
+        .rules-list i {
+            width: 20px;
+            text-align: center;
+            margin-right: 8px;
+        }
+
+        #msg-float {
+            position: absolute;
+            top: 55%; /* 稍微靠下，避开中心 */
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 60px;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            display: none;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="game-wrapper">
+        <div id="hud">
+            <div class="stat-card" style="align-items: flex-start; width: 120px;">
+                <div class="stat-label">Lives</div>
+                <div id="ui-lives" class="stat-value" style="color: #ef4444; font-size: 20px;">❤️❤️❤️</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Score</div>
+                <div id="ui-score" class="stat-value" style="color: #3b82f6;">0</div>
+                <div id="ui-high-score" class="stat-subvalue">BEST 0</div>
+            </div>
+            <!-- 右侧组合：关卡 + 暂停 -->
+            <div style="display: flex; align-items: center; width: 120px; justify-content: flex-end;">
+                <div class="stat-card" style="align-items: flex-end; margin-right: 0;">
+                    <div class="stat-label">Level</div>
+                    <div id="ui-level" class="stat-value">1</div>
+                    <div id="ui-run-mode" class="stat-subvalue hidden">RUN 1→20</div>
+                </div>
+                <button id="pause-btn" onclick="game.pauseGame()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <div style="position: relative;">
+            <canvas id="gameCanvas" width="665" height="630"></canvas>
+            <div id="msg-float">READY</div>
+        </div>
+
+        <!-- 1. 主菜单 -->
+        <div id="screen-menu" class="overlay">
+            <div class="menu-decoration">
+                <div class="floating-ghost" style="background: #ef4444; animation-delay: 0s;"></div>
+                <div class="css-pacman" style="margin: 0 20px;"></div>
+                <div class="floating-ghost" style="background: #3b82f6; animation-delay: 1s;"></div>
+            </div>
+            <div class="title">Pac-Man<br><span style="font-size: 24px; color: #64748b; font-weight: 400; background:none; -webkit-text-fill-color: initial;">Remastered</span></div>
+            
+            <div class="btn-group">
+                <button onclick="game.startFullRun()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3v18l15-9z"/></svg> Full Run (1→20)
+                </button>
+                <button onclick="game.showLevelSelect()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Start Game
+                </button>
+                <button class="secondary" onclick="game.showRules()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg> How to Play
+                </button>
+            </div>
+            <div style="margin-top: 30px; font-size: 12px; color: #94a3b8;">
+                Highest Level Reached: <span id="menu-max-level">1</span>
+                <br/>Best Full Run: <span id="menu-best-run">1</span>
+            </div>
+        </div>
+
+        <!-- 2. 关卡选择 -->
+        <div id="screen-levels" class="overlay hidden">
+            <div class="title" style="font-size: 32px;">Select Level</div>
+            <div class="subtitle">You can play any level you've unlocked.</div>
+            <div id="level-grid">
+                <!-- JS生成 -->
+            </div>
+            <button class="secondary" style="width: auto; padding: 10px 30px;" onclick="game.showMenu()">Back</button>
+        </div>
+
+        <!-- 3. 规则说明 -->
+        <div id="screen-rules" class="overlay hidden">
+            <div class="title" style="font-size: 32px;">How to Play</div>
+            <div class="rules-list">
+                <div><span style="margin-right: 8px;">⌨️</span> Use Arrow Keys to move</div>
+                <div><span style="margin-right: 8px;">🟡</span> Eat all dots to win the level</div>
+                <div><span style="margin-right: 8px;">🟣</span> Eat big Power Pellets to eat ghosts!</div>
+                <div><span style="margin-right: 8px;">👻</span> Avoid ghosts (Lose 1 Life)</div>
+                <div><span style="margin-right: 8px;">❤️</span> You have 3 lives per game</div>
+                <div><span style="margin-right: 8px;">⚡</span> Game gets faster every level</div>
+            </div>
+            <button onclick="game.showMenu()">Got it!</button>
+        </div>
+
+        <!-- 4. 暂停菜单 -->
+        <div id="screen-paused" class="overlay glass hidden">
+            <div class="title" style="font-size: 40px;">Paused</div>
+            <div class="btn-group">
+                <button onclick="game.resumeGame()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Resume
+                </button>
+                <button class="secondary" onclick="game.restartLevel()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg> Restart Level
+                </button>
+                <button class="secondary" onclick="game.quitToMenu()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> Main Menu
+                </button>
+            </div>
+        </div>
+
+        <!-- 5. 游戏结束 -->
+        <div id="screen-gameover" class="overlay glass hidden">
+            <div class="title" style="color: #ef4444; -webkit-text-fill-color: #ef4444; background: none;">Game Over</div>
+            <div class="subtitle">Final Score: <span id="end-score" style="font-weight: bold; color: #1e293b; font-size: 24px;">0</span></div>
+            <div id="end-run-best" class="subtitle hidden">Best Full Run: <span id="end-run-best-value" style="font-weight: bold; color: #1e293b;">1</span></div>
+            <div class="btn-group">
+                <button onclick="game.restartGame()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg> Try Again
+                </button>
+                <button class="secondary" onclick="game.quitToMenu()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> Main Menu
+                </button>
+            </div>
+        </div>
+
+        <!-- 5.5 全程模式完成 -->
+        <div id="screen-runcomplete" class="overlay glass hidden">
+            <div class="title" style="color: #10b981; -webkit-text-fill-color: #10b981; background: none;">Full Run Clear</div>
+            <div class="subtitle">You reached Level <span id="runcomplete-level">20</span> with Score <span id="runcomplete-score" style="font-weight: bold; color: #1e293b;">0</span></div>
+            <div class="subtitle">Best Full Run: <span id="runcomplete-best" style="font-weight: bold; color: #1e293b;">1</span></div>
+            <div class="btn-group">
+                <button onclick="game.restartGame()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg> Run Again
+                </button>
+                <button class="secondary" onclick="game.quitToMenu()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> Main Menu
+                </button>
+            </div>
+        </div>
+
+        <!-- 6. 关卡完成 -->
+        <div id="screen-levelup" class="overlay glass hidden">
+            <div class="title" style="color: #10b981; -webkit-text-fill-color: #10b981; background: none;">Level Clear!</div>
+            <div class="subtitle">Next Level: <span id="next-level-num">2</span></div>
+        </div>
+    </div>
+
+    <script>
+        const TILE_SIZE = 35; 
+        const BASE_SPEED = 0.03; 
+        const RUN_MAX_LEVEL = 20; // 全程模式的终点关卡
+        
+        const LEVEL_THEMES = [
+            { wall: '#475569', bg: '#1e293b' }, 
+            { wall: '#7c2d12', bg: '#451a03' }, 
+            { wall: '#10b981', bg: '#022c22' }, 
+            { wall: '#4c1d95', bg: '#2e1065' }, 
+            { wall: '#831843', bg: '#500724' }  
+        ];
+
+        const RAW_MAP = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,3,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,3,1], // 角落变成 3 (大力丸)
+            [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+            [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
+            [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+            [1,1,1,1,0,1,1,1,2,1,2,1,1,1,0,1,1,1,1],
+            [2,2,2,1,0,1,2,2,2,9,2,2,2,1,0,1,2,2,2],
+            [1,1,1,1,0,1,2,1,1,2,1,1,2,1,0,1,1,1,1],
+            [1,0,0,0,0,0,0,1,2,2,2,1,0,0,0,0,0,0,1],
+            [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+            [1,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1],
+            [1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1],
+            [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+            [1,3,1,1,1,1,1,1,0,1,0,1,1,1,1,1,1,3,1], // 角落变成 3
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+
+        // 生成 4 套变体地图（每 5 关切换一次）
+        const cloneMap = (map) => map.map(row => [...row]);
+        const makeVariant = (base, changes = []) => {
+            const m = cloneMap(base);
+            changes.forEach(({x, y, val}) => {
+                if (m[y] && typeof m[y][x] !== 'undefined') m[y][x] = val;
+            });
+            return m;
+        };
+
+        const MAP_VARIANTS = [
+            RAW_MAP,
+            // 变体2：中央增加立柱、左右中路开口
+            makeVariant(RAW_MAP, [
+                {x:3, y:4, val:1}, {x:9, y:4, val:1}, {x:15, y:4, val:1},
+                {x:3, y:13, val:1}, {x:9, y:13, val:1}, {x:15, y:13, val:1},
+                {x:5, y:9, val:0}, {x:13, y:9, val:0}
+            ]),
+            // 变体3：鬼屋周围开更大通道
+            makeVariant(RAW_MAP, [
+                {x:3, y:7, val:0}, {x:15, y:7, val:0},
+                {x:3, y:8, val:0}, {x:15, y:8, val:0},
+                {x:3, y:9, val:0}, {x:15, y:9, val:0},
+                {x:8, y:8, val:0}, {x:10, y:8, val:0}
+            ]),
+            // 变体4：增加中段障碍
+            makeVariant(RAW_MAP, [
+                {x:5, y:4, val:1}, {x:13, y:4, val:1},
+                {x:5, y:12, val:1}, {x:13, y:12, val:1},
+                {x:1, y:5, val:1}, {x:17, y:5, val:1},
+                {x:7, y:6, val:1}, {x:11, y:6, val:1}
+            ])
+        ];
+
+        const getMapForLevel = (level) => {
+            const idx = Math.min(MAP_VARIANTS.length - 1, Math.floor((level - 1) / 5));
+            return cloneMap(MAP_VARIANTS[idx]);
+        };
+
+        class Particle {
+            constructor(x, y, color, size) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.vx = (Math.random() - 0.5) * 3;
+                this.vy = (Math.random() - 0.5) * 3;
+                this.life = 30;
+                this.maxLife = 30;
+                this.size = size || 4;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+                this.size *= 0.95; 
+            }
+            draw(ctx) {
+                ctx.globalAlpha = this.life / this.maxLife;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        class Entity {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.startX = x;
+                this.startY = y;
+                this.color = color;
+                this.dir = {x:0, y:0};
+                this.nextDir = {x:0, y:0};
+                this.radius = TILE_SIZE * 0.38; 
+                this.speed = BASE_SPEED;
+                this.tick = 0; 
+            }
+
+            canMove(dx, dy) {
+                const nextX = Math.round(this.x + dx);
+                const nextY = Math.round(this.y + dy);
+                if (nextY < 0 || nextY >= game.map.length || nextX < 0 || nextX >= game.map[0].length) return false;
+                return game.map[nextY][nextX] !== 1;
+            }
+
+            move() {
+                this.tick++;
+                this.x += this.dir.x * this.speed;
+                this.y += this.dir.y * this.speed;
+
+                const cx = Math.round(this.x);
+                const cy = Math.round(this.y);
+                const distToCenter = Math.abs(this.x - cx) + Math.abs(this.y - cy);
+
+                if (distToCenter < 0.15) {
+                    if (this.nextDir.x !== 0 || this.nextDir.y !== 0) {
+                        if (this.canMove(this.nextDir.x, this.nextDir.y)) {
+                            this.x = cx;
+                            this.y = cy;
+                            this.dir = {...this.nextDir};
+                            this.nextDir = {x:0, y:0};
+                        }
+                    }
+                    if (!this.canMove(this.dir.x, this.dir.y)) {
+                        this.x = cx;
+                        this.y = cy;
+                        this.dir = {x:0, y:0};
+                    }
+                }
+                if (this.x < -0.5) this.x = game.map[0].length - 0.5;
+                if (this.x > game.map[0].length - 0.5) this.x = -0.5;
+            }
+        }
+
+        class Pacman extends Entity {
+            constructor(x, y) {
+                super(x, y, '#fbbf24');
+                this.scale = 1; 
+            }
+
+            update() {
+                this.move();
+                if (this.scale > 1) this.scale -= 0.05;
+                else this.scale = 1;
+
+                if (this.dir.x !== 0 || this.dir.y !== 0) {
+                    if (this.tick % 6 === 0) {
+                        game.particles.push(new Particle(
+                            this.x * TILE_SIZE + TILE_SIZE/2,
+                            this.y * TILE_SIZE + TILE_SIZE/2,
+                            'rgba(251, 191, 36, 0.4)', 6
+                        ));
+                    }
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x * TILE_SIZE + TILE_SIZE/2, this.y * TILE_SIZE + TILE_SIZE/2);
+                ctx.scale(this.scale, this.scale);
+
+                let rotation = 0;
+                let flipY = 1;
+                if (this.dir.x === -1) { rotation = Math.PI; flipY = -1; }
+                else if (this.dir.x === 1) rotation = 0;
+                else if (this.dir.y === -1) rotation = -Math.PI/2;
+                else if (this.dir.y === 1) rotation = Math.PI/2;
+                
+                ctx.rotate(rotation);
+                if (flipY === -1) ctx.scale(1, -1); 
+
+                const wave = Math.sin(this.tick * 0.15); 
+                const openSize = 0.02 + (wave + 1) * 0.12; 
+                const openAngle = openSize * Math.PI;
+
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, openAngle, 2 * Math.PI - openAngle);
+                ctx.lineTo(0, 0);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.closePath();
+
+                const eyeX = 2; 
+                const eyeY = -this.radius * 0.65; 
+                
+                ctx.fillStyle = '#1e293b';
+                ctx.beginPath();
+                ctx.arc(eyeX, eyeY, this.radius * 0.16, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(eyeX + 2, eyeY - 2, this.radius * 0.06, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        class Ghost extends Entity {
+            constructor(x, y, color) {
+                super(x, y, color);
+                this.dir = {x: 1, y: 0}; 
+                this.speed = BASE_SPEED * 0.6; 
+                this.lastDecisionX = -1;
+                this.lastDecisionY = -1;
+                this.isScared = false; // 受惊状态
+            }
+
+            update() {
+                this.tick++; 
+                // 受惊时速度减半
+                const currentSpeed = this.isScared ? this.speed * 0.5 : this.speed;
+                
+                const cx = Math.round(this.x);
+                const cy = Math.round(this.y);
+                const distToCenter = Math.abs(this.x - cx) + Math.abs(this.y - cy);
+                const atNewCenter = distToCenter < 0.1 && (cx !== this.lastDecisionX || cy !== this.lastDecisionY);
+
+                if (atNewCenter) {
+                    this.x = cx;
+                    this.y = cy;
+                    this.lastDecisionX = cx;
+                    this.lastDecisionY = cy;
+                    
+                    const possibleMoves = [];
+                    const dirs = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
+                    dirs.forEach(d => {
+                        if (d.x === -this.dir.x && d.y === -this.dir.y) return; 
+                        if (this.canMove(d.x, d.y)) possibleMoves.push(d);
+                    });
+
+                    if (possibleMoves.length > 0) {
+                        // 受惊模式：完全随机（或者甚至可以设计为逃离玩家，这里简化为随机）
+                        if (this.isScared) {
+                             this.dir = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                        } else {
+                            // 正常模式：智能追踪
+                            const smartChance = Math.min((game.level - 1) * 0.1, 0.6);
+                            const isSmart = Math.random() < smartChance;
+                            if (isSmart && game.player) {
+                                let bestMove = possibleMoves[0];
+                                let minDistance = 99999;
+                                possibleMoves.forEach(move => {
+                                    const nextX = this.x + move.x;
+                                    const nextY = this.y + move.y;
+                                    const dist = Math.abs(nextX - game.player.x) + Math.abs(nextY - game.player.y);
+                                    if (dist < minDistance) { minDistance = dist; bestMove = move; }
+                                });
+                                this.dir = bestMove;
+                            } else {
+                                this.dir = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                            }
+                        }
+                    } else {
+                        this.dir = {x: -this.dir.x, y: -this.dir.y}; 
+                    }
+                }
+                this.x += this.dir.x * currentSpeed;
+                this.y += this.dir.y * currentSpeed;
+                if (this.x < -0.5) this.x = game.map[0].length - 0.5;
+                if (this.x > game.map[0].length - 0.5) this.x = -0.5;
+            }
+
+            draw(ctx) {
+                const cx = this.x * TILE_SIZE + TILE_SIZE/2;
+                const hoverY = Math.sin(this.tick * 0.1) * 3;
+                const cy = this.y * TILE_SIZE + TILE_SIZE/2 + hoverY;
+                
+                // 受惊变成深蓝色
+                ctx.fillStyle = this.isScared ? '#3b82f6' : this.color;
+                
+                // 鬼魂身体
+                ctx.beginPath();
+                ctx.arc(cx, cy - 4, this.radius, Math.PI, 0);
+                ctx.lineTo(cx + this.radius, cy + this.radius);
+                
+                // 底部波浪
+                const waveStep = this.radius * 2 / 3;
+                for(let i=1; i<=3; i++) {
+                    const cpX = cx + this.radius - waveStep * (i - 0.5);
+                    const endX = cx + this.radius - waveStep * i;
+                    const waveY = cy + this.radius + Math.sin(this.tick * 0.2 + i) * 2;
+                    ctx.quadraticCurveTo(cpX, waveY, endX, cy + this.radius);
+                }
+                
+                ctx.lineTo(cx - this.radius, cy - 4);
+                ctx.fill();
+                ctx.closePath();
+
+                // 眼睛
+                if (this.isScared) {
+                    ctx.fillStyle = '#fbbf24'; 
+                    ctx.beginPath();
+                    ctx.arc(cx - 4, cy - 4, 3, 0, Math.PI*2);
+                    ctx.arc(cx + 4, cy - 4, 3, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(cx - 6, cy + 6);
+                    ctx.lineTo(cx - 3, cy + 2);
+                    ctx.lineTo(cx, cy + 6);
+                    ctx.lineTo(cx + 3, cy + 2);
+                    ctx.lineTo(cx + 6, cy + 6);
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.ellipse(cx - 4, cy - 6, 4, 5, 0, 0, Math.PI*2);
+                    ctx.ellipse(cx + 4, cy - 6, 4, 5, 0, 0, Math.PI*2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#1e293b';
+                    const lookX = this.dir.x * 1.5;
+                    const lookY = this.dir.y * 1.5;
+                    ctx.beginPath();
+                    ctx.arc(cx - 4 + lookX, cy - 6 + lookY, 2, 0, Math.PI*2);
+                    ctx.arc(cx + 4 + lookX, cy - 6 + lookY, 2, 0, Math.PI*2);
+                    ctx.fill();
+                }
+            }
+
+            resetGhost() {
+                this.resetPos();
+                this.dir = {x: 0, y: -1}; // 重生后立即向上出门，防止卡死
+                this.lastDecisionX = -1;
+                this.lastDecisionY = -1;
+                this.isScared = false;
+            }
+        }
+
+        class AudioController {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.enabled = true;
+            }
+
+            resume() {
+                if (!this.enabled || !this.ctx) return;
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playTone(freq, type, duration, startTime = 0) {
+                if (!this.enabled) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime + startTime);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime + startTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + startTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(this.ctx.currentTime + startTime);
+                osc.stop(this.ctx.currentTime + startTime + duration);
+            }
+
+            playWaka() {
+                // 经典的双音 Waka
+                this.playTone(200, 'triangle', 0.1);
+                this.playTone(300, 'triangle', 0.1, 0.1);
+            }
+
+            playPower() {
+                // 大力丸：高频颤音
+                this.playTone(600, 'sine', 0.3);
+                this.playTone(800, 'square', 0.3, 0.1);
+            }
+
+            playEatGhost() {
+                // 上升琶音
+                this.playTone(400, 'square', 0.1);
+                this.playTone(600, 'square', 0.1, 0.1);
+                this.playTone(800, 'square', 0.1, 0.2);
+                this.playTone(1200, 'square', 0.2, 0.3);
+            }
+
+            playDie() {
+                // 下坠滑音 (模拟)
+                for (let i = 0; i < 10; i++) {
+                    this.playTone(500 - i * 50, 'sawtooth', 0.1, i * 0.1);
+                }
+            }
+
+            playWin() {
+                // 胜利旋律
+                [523, 659, 784, 1046, 784, 1046].forEach((freq, i) => {
+                    this.playTone(freq, 'square', 0.2, i * 0.15);
+                });
+            }
+        }
+
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.map = [];
+                this.pellets = [];
+                this.walls = [];
+                this.particles = [];
+                
+                this.score = 0;
+                this.level = 1;
+                this.lives = 3; 
+                this.maxLevelReached = Math.min(parseInt(localStorage.getItem('pacman_max_level')) || 1, RUN_MAX_LEVEL);
+                this.highScore = parseInt(localStorage.getItem('pacman_high_score')) || 0;
+                this.bestRunLevel = Math.min(parseInt(localStorage.getItem('pacman_best_run_level')) || 1, RUN_MAX_LEVEL);
+                this.runHighest = 0;
+                this.mode = 'FREE'; // FREE 或 RUN
+                this.scaredTimer = 0;
+
+                this.state = 'MENU'; 
+
+                this.player = null;
+                this.ghosts = [];
+                this.loopId = null;
+                this.audio = new AudioController(); // 实例化音频控制器
+                this.setupAudioUnlock(); // 确保首次交互后音频可用
+
+                this.initMap(getMapForLevel(1));
+                this.setupInputs();
+                this.updateHUD();
+                
+                this.showMenu(); // 初始显示菜单
+                this.loop(); // 启动循环（用于渲染背景或菜单动画，这里主要用 loop 里的 state 判断）
+            }
+
+            initMap(rawMap) {
+                this.map = JSON.parse(JSON.stringify(rawMap));
+                this.canvas.width = this.map[0].length * TILE_SIZE;
+                this.canvas.height = this.map.length * TILE_SIZE;
+            }
+
+            // --- UI 控制 ---
+
+            hideAllScreens() {
+                document.querySelectorAll('.overlay').forEach(el => el.classList.add('hidden'));
+                document.getElementById('pause-btn').style.display = 'none';
+            }
+
+            showMenu() {
+                this.state = 'MENU';
+                this.hideAllScreens();
+                document.getElementById('screen-menu').classList.remove('hidden');
+                document.getElementById('menu-max-level').innerText = this.maxLevelReached;
+                document.getElementById('menu-best-run').innerText = this.bestRunLevel;
+                // 在菜单界面也可以画一下静态背景
+                this.draw();
+            }
+
+            showRules() {
+                this.hideAllScreens();
+                document.getElementById('screen-rules').classList.remove('hidden');
+            }
+
+            showLevelSelect() {
+                this.hideAllScreens();
+                const grid = document.getElementById('level-grid');
+                grid.innerHTML = '';
+                
+                // 生成 1~20 关卡按钮
+                for (let i = 1; i <= RUN_MAX_LEVEL; i++) {
+                    const btn = document.createElement('button');
+                    btn.className = 'level-btn';
+                    btn.innerText = i;
+                    if (i > this.maxLevelReached) {
+                        btn.classList.add('locked');
+                        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3 3.1-3s3.1 1.29 3.1 3v2z"/></svg>';
+                    } else {
+                        btn.onclick = () => this.startNewGame(i, 'FREE');
+                    }
+                    grid.appendChild(btn);
+                }
+                document.getElementById('screen-levels').classList.remove('hidden');
+            }
+
+            // --- 游戏流程 ---
+
+            startNewGame(startLevel = 1, mode = 'FREE') {
+                this.mode = mode;
+                this.level = startLevel;
+                this.score = 0;
+                this.lives = 3;
+                this.runHighest = this.mode === 'RUN' ? startLevel : 0;
+                this.updateHUD();
+                this.startLevel(true);
+            }
+
+            startFullRun() {
+                this.startNewGame(1, 'RUN');
+            }
+
+            restartGame() {
+                this.startNewGame(1, this.mode);
+            }
+
+            restartLevel() {
+                // 关卡重置：普通模式保留分数、回满血并重置本关；全程模式直接回到第1关重新开始
+                if (this.mode === 'RUN') {
+                    this.startNewGame(1, 'RUN');
+                    return;
+                }
+                this.score = 0; // 普通模式重置分数
+                this.lives = 3;
+                this.updateHUD();
+                this.startLevel(true); // 重置当前关卡豆子和实体
+            }
+
+            startLevel(respawnPellets) {
+                if (respawnPellets) {
+                    this.initMap(getMapForLevel(this.level));
+                }
+                this.resetEntities(respawnPellets);
+                if (this.mode === 'RUN') {
+                    this.runHighest = Math.max(this.runHighest || 0, this.level);
+                    this.updateRunRecord();
+                }
+                this.state = 'READY';
+                this.hideAllScreens();
+                document.getElementById('pause-btn').style.display = 'flex';
+
+                this.draw(); 
+                const msg = document.getElementById('msg-float');
+                msg.innerText = respawnPellets ? `LEVEL ${this.level}` : "READY"; 
+                msg.style.display = 'block';
+                
+                setTimeout(() => { 
+                    if (this.state !== 'READY') return; // 防止中途退出
+                    if (respawnPellets) msg.innerText = "READY"; 
+                }, 1000);
+                
+                setTimeout(() => { 
+                    if (this.state !== 'READY') return;
+                    msg.innerText = "GO!"; 
+                }, 2000);
+                
+                setTimeout(() => { 
+                    if (this.state !== 'READY') return;
+                    msg.style.display = 'none'; 
+                    this.state = 'PLAYING';
+                }, 2500);
+            }
+
+            pauseGame() {
+                if (this.state === 'PLAYING') {
+                    this.state = 'PAUSED';
+                    document.getElementById('screen-paused').classList.remove('hidden');
+                }
+            }
+
+            resumeGame() {
+                if (this.state === 'PAUSED') {
+                    this.state = 'PLAYING';
+                    document.getElementById('screen-paused').classList.add('hidden');
+                }
+            }
+
+            quitToMenu() {
+                this.showMenu();
+            }
+
+            resetEntities(respawnPellets = false) {
+                this.walls = [];
+                this.ghosts = [];
+                this.particles = [];
+                
+                if (respawnPellets) this.pellets = [];
+
+                for (let y = 0; y < this.map.length; y++) {
+                    for (let x = 0; x < this.map[y].length; x++) {
+                        const type = this.map[y][x];
+                        if (type === 1) this.walls.push({x, y});
+                        
+                        // 普通豆子 (0)
+                        if (respawnPellets && type === 0) this.pellets.push({x, y, active: true, power: false});
+                        // 大力丸 (3)
+                        if (respawnPellets && type === 3) this.pellets.push({x, y, active: true, power: true});
+                        
+                        if (type === 9) {
+                            const colors = ['#f87171', '#c084fc', '#38bdf8', '#fb923c', '#4ade80'];
+                            let maxGhosts = 3;
+                            if (this.level >= 3) maxGhosts = 4;
+                            if (this.level >= 5) maxGhosts = 5;
+
+                            while (this.ghosts.length < maxGhosts) {
+                                this.ghosts.push(new Ghost(x, y, colors[this.ghosts.length % colors.length]));
+                            }
+                        }
+                    }
+                }
+
+                this.player = new Pacman(9, 16);
+                const speedMult = 1 + (this.level - 1) * 0.03; 
+                this.player.speed = Math.min(BASE_SPEED * speedMult, 0.08);
+                this.ghosts.forEach(g => g.speed = Math.min((BASE_SPEED * 0.6) * speedMult, 0.06));
+            }
+
+            update() {
+                if (this.state === 'PLAYING') {
+                    this.player.update();
+                    this.ghosts.forEach(g => g.update());
+
+                    // 1. 更新受惊倒计时
+                    if (this.scaredTimer > 0) {
+                        this.scaredTimer--;
+                        if (this.scaredTimer === 0) {
+                            this.ghosts.forEach(g => g.isScared = false);
+                        }
+                    }
+
+                    for(let i = this.particles.length - 1; i >= 0; i--) {
+                        this.particles[i].update();
+                        if(this.particles[i].life <= 0) this.particles.splice(i, 1);
+                    }
+
+                    // 2. 吃豆检测
+                    const px = Math.round(this.player.x);
+                    const py = Math.round(this.player.y);
+                    const pIndex = this.pellets.findIndex(p => p.x === px && p.y === py && p.active);
+                    
+                    if (pIndex !== -1) {
+                    const pellet = this.pellets[pIndex];
+                    pellet.active = false;
+                    this.score += 10;
+                    this.player.scale = 1.3; 
+                    
+                    // --- 吃大力丸逻辑 ---
+                    if (pellet.power) {
+                        this.scaredTimer = 600; // 10秒
+                        this.ghosts.forEach(g => g.isScared = true);
+                        this.score += 40;
+                        this.audio.playPower();
+                    } else {
+                        this.audio.playWaka();
+                    }
+                    this.updateHUD();
+
+                    // 吃豆特效
+                    for(let k=0; k<4; k++) {
+                        this.particles.push(new Particle(
+                            px * TILE_SIZE + TILE_SIZE/2,
+                                py * TILE_SIZE + TILE_SIZE/2,
+                                pellet.power ? '#ff00ff' : '#fff', 
+                                pellet.power ? 8 : 5
+                            ));
+                        }
+                        if (this.pellets.every(p => !p.active)) {
+                            this.levelComplete();
+                        }
+                    }
+
+                    // 3. 鬼魂碰撞检测
+                    for (let g of this.ghosts) {
+                        const dist = Math.hypot(this.player.x - g.x, this.player.y - g.y);
+                        if (dist < 0.6) {
+                            // --- 反杀逻辑 ---
+                            if (g.isScared) {
+                                // 吃掉鬼魂！
+                                // 直接重置状态，不调用方法以防万一
+                                g.x = g.startX;
+                                g.y = g.startY;
+                                g.dir = {x: 0, y: -1}; // 向上出门
+                                g.nextDir = {x:0, y:0};
+                                g.lastDecisionX = -1;
+                                g.lastDecisionY = -1;
+                                g.isScared = false; 
+                                
+                                this.score += 200;
+                                this.updateHUD();
+                                
+                                this.audio.playEatGhost();
+                                
+                                // 吃鬼特效 (蓝色爆炸)
+                                for(let i=0; i<20; i++) {
+                                    this.particles.push(new Particle(
+                                        this.player.x * TILE_SIZE + TILE_SIZE/2,
+                                        this.player.y * TILE_SIZE + TILE_SIZE/2,
+                                        '#3b82f6', 6
+                                    ));
+                                }
+                            } else {
+                                // 被鬼魂吃掉
+                                this.deathSequence();
+                                return;
+                            }
+                        }
+                    }
+                } else if (this.state === 'DYING') {
+                    for(let i = this.particles.length - 1; i >= 0; i--) {
+                        this.particles[i].update();
+                        if(this.particles[i].life <= 0) this.particles.splice(i, 1);
+                    }
+                }
+            }
+
+            deathSequence() {
+                this.state = 'DYING';
+                this.lives--;
+                this.updateHUD();
+                this.audio.playDie();
+
+                for(let i=0; i<30; i++) {
+                    this.particles.push(new Particle(
+                        this.player.x * TILE_SIZE + TILE_SIZE/2,
+                        this.player.y * TILE_SIZE + TILE_SIZE/2,
+                        '#fbbf24', 8
+                    ));
+                }
+                
+                setTimeout(() => {
+                    if (this.state !== 'DYING') return; // 防止中途退出
+                    if (this.lives > 0) {
+                        this.startLevel(false); 
+                    } else {
+                        this.gameOver();
+                    }
+                }, 1500);
+            }
+
+            levelComplete() {
+                this.state = 'LEVEL_TRANSITION';
+                this.pellets = []; 
+                this.audio.playWin();
+                const nextLevel = Math.min(this.level + 1, RUN_MAX_LEVEL);
+                // 解锁新关卡
+                if (nextLevel > this.maxLevelReached) {
+                    this.maxLevelReached = nextLevel;
+                    localStorage.setItem('pacman_max_level', this.maxLevelReached);
+                }
+
+                if (this.mode === 'RUN') {
+                    this.runHighest = Math.max(this.runHighest, this.level);
+                    this.updateRunRecord();
+                    if (this.level >= RUN_MAX_LEVEL) {
+                        this.runComplete();
+                        return;
+                    }
+                }
+                document.getElementById('next-level-num').innerText = nextLevel;
+                document.getElementById('screen-levelup').classList.remove('hidden');
+                
+                setTimeout(() => {
+                    if (this.state !== 'LEVEL_TRANSITION') return;
+                    document.getElementById('screen-levelup').classList.add('hidden');
+                    this.level = nextLevel;
+                    this.startLevel(true);
+                }, 3000);
+            }
+
+            runComplete() {
+                this.state = 'RUN_COMPLETE';
+                this.updateRunRecord();
+                this.updateHUD();
+                document.getElementById('runcomplete-level').innerText = this.runHighest;
+                document.getElementById('runcomplete-score').innerText = this.score;
+                document.getElementById('runcomplete-best').innerText = this.bestRunLevel;
+                document.getElementById('screen-levelup').classList.add('hidden');
+                document.getElementById('screen-runcomplete').classList.remove('hidden');
+                document.getElementById('pause-btn').style.display = 'none';
+            }
+
+            gameOver() {
+                this.state = 'GAMEOVER';
+                this.updateRunRecord();
+                this.updateHUD();
+                document.getElementById('end-score').innerText = this.score;
+                const runBestRow = document.getElementById('end-run-best');
+                if (this.mode === 'RUN') {
+                    document.getElementById('end-run-best-value').innerText = this.bestRunLevel;
+                    runBestRow.classList.remove('hidden');
+                } else {
+                    runBestRow.classList.add('hidden');
+                }
+                document.getElementById('screen-gameover').classList.remove('hidden');
+                document.getElementById('pause-btn').style.display = 'none';
+            }
+
+            draw() {
+                // 如果在菜单状态，也可以画背景
+                const theme = LEVEL_THEMES[(this.level - 1) % LEVEL_THEMES.length];
+                this.ctx.fillStyle = theme.bg;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw Walls 
+                this.ctx.fillStyle = theme.wall;
+                this.walls.forEach(w => {
+                    const cx = w.x * TILE_SIZE;
+                    const cy = w.y * TILE_SIZE;
+                    const size = TILE_SIZE;
+                    const pad = 0; 
+                    this.ctx.beginPath();
+                    this.ctx.roundRect(cx + pad, cy + pad, size - pad*2, size - pad*2, 8);
+                    this.ctx.fill();
+                });
+
+                // Draw Pellets
+                this.pellets.forEach(p => {
+                    if (p.active) {
+                        this.ctx.beginPath();
+                        if (p.power) {
+                            // 大力丸：闪烁大球
+                            const pulse = Math.sin(this.player ? this.player.tick * 0.2 : Date.now() * 0.01) * 2;
+                            this.ctx.fillStyle = '#ff00ff'; // 霓虹粉
+                            this.ctx.arc(p.x * TILE_SIZE + TILE_SIZE/2, p.y * TILE_SIZE + TILE_SIZE/2, 7 + pulse, 0, Math.PI*2);
+                            this.ctx.shadowBlur = 15;
+                            this.ctx.shadowColor = '#ff00ff';
+                            this.ctx.fill();
+                            this.ctx.shadowBlur = 0;
+                        } else {
+                            // 普通豆子
+                            this.ctx.fillStyle = '#fbbf24';
+                            this.ctx.arc(p.x * TILE_SIZE + TILE_SIZE/2, p.y * TILE_SIZE + TILE_SIZE/2, 5, 0, Math.PI*2);
+                            this.ctx.fill();
+                        }
+                    }
+                });
+
+                this.particles.forEach(p => p.draw(this.ctx));
+
+                if (this.state !== 'MENU' && this.state !== 'GAMEOVER_SCREEN' && this.player) {
+                    if (this.state !== 'DYING') this.player.draw(this.ctx);
+                    this.ghosts.forEach(g => g.draw(this.ctx));
+                }
+            }
+
+            loop() {
+                // 主循环始终运行，根据状态决定 update
+                if (this.state === 'PLAYING' || this.state === 'DYING') {
+                    this.update();
+                }
+                this.draw(); // 始终绘制，保持画面不消失（暂停时也能看到定格画面）
+                this.loopId = requestAnimationFrame(() => this.loop());
+            }
+
+            updateHighScore() {
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('pacman_high_score', this.highScore);
+                }
+            }
+
+            updateRunRecord() {
+                if (this.mode !== 'RUN') return;
+                if (this.runHighest > this.bestRunLevel) {
+                    this.bestRunLevel = this.runHighest;
+                    localStorage.setItem('pacman_best_run_level', this.bestRunLevel);
+                    const menuRun = document.getElementById('menu-best-run');
+                    if (menuRun) menuRun.innerText = this.bestRunLevel;
+                }
+            }
+
+            updateHUD() {
+                this.updateHighScore();
+                document.getElementById('ui-score').innerText = this.score;
+                document.getElementById('ui-level').innerText = this.level;
+                const hearts = '❤️'.repeat(Math.max(0, this.lives));
+                document.getElementById('ui-lives').innerText = hearts;
+                document.getElementById('ui-high-score').innerText = `BEST ${this.highScore}`;
+                const runBadge = document.getElementById('ui-run-mode');
+                if (this.mode === 'RUN') {
+                    runBadge.innerText = `RUN 1→${RUN_MAX_LEVEL}`;
+                    runBadge.classList.remove('hidden');
+                } else {
+                    runBadge.classList.add('hidden');
+                }
+            }
+
+            setupAudioUnlock() {
+                const unlock = () => {
+                    this.audio.resume();
+                    ['click', 'keydown', 'touchstart'].forEach(evt => document.removeEventListener(evt, unlock));
+                };
+                ['click', 'keydown', 'touchstart'].forEach(evt => {
+                    document.addEventListener(evt, unlock, { once: true });
+                });
+            }
+
+            setupInputs() {
+                document.addEventListener('keydown', (e) => {
+                    // 只有游戏中才响应移动，暂停或菜单不响应
+                    if (this.state !== 'PLAYING') return;
+                    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.code) > -1) e.preventDefault();
+
+                    switch(e.key) {
+                        case 'ArrowUp': this.player.nextDir = {x: 0, y: -1}; break;
+                        case 'ArrowDown': this.player.nextDir = {x: 0, y: 1}; break;
+                        case 'ArrowLeft': this.player.nextDir = {x: -1, y: 0}; break;
+                        case 'ArrowRight': this.player.nextDir = {x: 1, y: 0}; break;
+                    }
+                });
+            }
+        }
+
+        const game = new Game();
+
+    </script>
+</body>
+</html>
