@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>吃豆人：现代重制</title>
     <link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
     <style>
@@ -27,6 +26,7 @@
             margin: 0;
             overflow: hidden;
             user-select: none;
+            touch-action: none;
         }
 
         #game-wrapper {
@@ -41,6 +41,15 @@
             flex-direction: column;
             align-items: center;
             width: 700px; /* 固定宽度 */
+            transform-origin: top center;
+        }
+
+        @media (max-width: 740px) {
+            #game-wrapper {
+                /* 计算缩放比例：屏幕宽度 / 740 (预留一些边距) */
+                transform: scale(calc((100vw - 20px) / 700));
+                margin-top: 0;
+            }
         }
 
         canvas {
@@ -1448,6 +1457,7 @@
             }
 
             setupInputs() {
+                // Keyboard
                 document.addEventListener('keydown', (e) => {
                     // 只有游戏中才响应移动，暂停或菜单不响应
                     if (this.state !== 'PLAYING') return;
@@ -1460,6 +1470,38 @@
                         case 'ArrowRight': this.player.nextDir = {x: 1, y: 0}; break;
                     }
                 });
+
+                // Touch Controls (Swipe)
+                let tsX = 0, tsY = 0;
+                this.canvas.addEventListener('touchstart', (e) => {
+                    tsx = e.touches[0].clientX;
+                    tsy = e.touches[0].clientY;
+                    e.preventDefault(); // 防止页面滚动
+                }, {passive: false});
+
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault(); // 防止页面滚动
+                }, {passive: false});
+
+                this.canvas.addEventListener('touchend', (e) => {
+                    if (this.state !== 'PLAYING') return;
+                    const tex = e.changedTouches[0].clientX;
+                    const tey = e.changedTouches[0].clientY;
+                    const dx = tex - tsx;
+                    const dy = tey - tsy;
+
+                    // 简单的手势识别：水平 vs 垂直
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        if (Math.abs(dx) > 20) { // 阈值
+                            this.player.nextDir = dx > 0 ? {x: 1, y: 0} : {x: -1, y: 0};
+                        }
+                    } else {
+                        if (Math.abs(dy) > 20) {
+                            this.player.nextDir = dy > 0 ? {x: 0, y: 1} : {x: 0, y: -1};
+                        }
+                    }
+                    e.preventDefault();
+                }, {passive: false});
             }
         }
 
