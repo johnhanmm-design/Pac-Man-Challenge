@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PAC-MAN: Modern Remaster</title>
-    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
+    <title>吃豆人：现代重制</title>
+    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-light: #f4f7f6;
@@ -161,6 +161,42 @@
             margin-bottom: 40px;
             line-height: 1.6;
             max-width: 400px;
+        }
+
+        /* 主标题更贴近街机感 */
+        .brand-title {
+            font-family: 'ZCOOL KuaiLe', 'Varela Round', sans-serif;
+            font-size: 64px;
+            color: #fbbf24;
+            letter-spacing: 6px;
+            text-shadow:
+                0 8px 0 #1e293b,
+                0 0 18px rgba(251, 191, 36, 0.55);
+            margin-bottom: 14px;
+        }
+        .brand-title .brand-chomp {
+            display: inline-block;
+            color: #fbbf24;
+            animation: glyphGlow 1.6s ease-in-out infinite;
+        }
+        .brand-title .brand-chomp:nth-child(1) { animation-delay: 0s; }
+        .brand-title .brand-chomp:nth-child(2) { animation-delay: 0.2s; }
+        .brand-title .brand-chomp:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes glyphGlow {
+            0% { color: #fbbf24; filter: drop-shadow(0 8px 0 #1e293b); }
+            50% { color: #fde047; filter: drop-shadow(0 10px 6px rgba(0,0,0,0.35)); }
+            100% { color: #fbbf24; filter: drop-shadow(0 8px 0 #1e293b); }
+        }
+        .brand-tagline {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 999px;
+            background: linear-gradient(120deg, #0ea5e9, #8b5cf6);
+            color: #fff;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.25);
         }
 
         /* 菜单装饰动画 */
@@ -369,20 +405,20 @@
     <div id="game-wrapper">
         <div id="hud">
             <div class="stat-card" style="align-items: flex-start; width: 120px;">
-                <div class="stat-label">Lives</div>
+                <div class="stat-label">生命</div>
                 <div id="ui-lives" class="stat-value" style="color: #ef4444; font-size: 20px;">❤️❤️❤️</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Score</div>
+                <div class="stat-label">得分</div>
                 <div id="ui-score" class="stat-value" style="color: #3b82f6;">0</div>
-                <div id="ui-high-score" class="stat-subvalue">BEST 0</div>
+                <div id="ui-high-score" class="stat-subvalue">最高 0</div>
             </div>
             <!-- 右侧组合：关卡 + 暂停 -->
             <div style="display: flex; align-items: center; width: 120px; justify-content: flex-end;">
                 <div class="stat-card" style="align-items: flex-end; margin-right: 0;">
-                    <div class="stat-label">Level</div>
+                    <div class="stat-label">关卡</div>
                     <div id="ui-level" class="stat-value">1</div>
-                    <div id="ui-run-mode" class="stat-subvalue hidden">RUN 1→20</div>
+                    <div id="ui-run-mode" class="stat-subvalue hidden">全程 1→20</div>
                 </div>
                 <button id="pause-btn" onclick="game.pauseGame()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
@@ -392,7 +428,7 @@
 
         <div style="position: relative;">
             <canvas id="gameCanvas" width="665" height="630"></canvas>
-            <div id="msg-float">READY</div>
+            <div id="msg-float">准备</div>
         </div>
 
         <!-- 1. 主菜单 -->
@@ -402,99 +438,103 @@
                 <div class="css-pacman" style="margin: 0 20px;"></div>
                 <div class="floating-ghost" style="background: #3b82f6; animation-delay: 1s;"></div>
             </div>
-            <div class="title">Pac-Man<br><span style="font-size: 24px; color: #64748b; font-weight: 400; background:none; -webkit-text-fill-color: initial;">Remastered</span></div>
+            <div class="title" style="background: none; -webkit-text-fill-color: initial;">
+                <div class="brand-title"><span class="brand-chomp">吃</span><span class="brand-chomp">豆</span><span class="brand-chomp">人</span></div>
+                <div class="brand-tagline">PAC-MAN</div>
+            </div>
             
             <div class="btn-group">
                 <button onclick="game.startFullRun()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3v18l15-9z"/></svg> Full Run (1→20)
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3v18l15-9z"/></svg> 全程挑战
                 </button>
                 <button onclick="game.showLevelSelect()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Start Game
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> 开始游戏
                 </button>
                 <button class="secondary" onclick="game.showRules()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg> How to Play
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg> 玩法说明
                 </button>
             </div>
             <div style="margin-top: 30px; font-size: 12px; color: #94a3b8;">
-                Highest Level Reached: <span id="menu-max-level">1</span>
-                <br/>Best Full Run: <span id="menu-best-run">1</span>
+                最高解锁关卡：<span id="menu-max-level">1</span>
+                <br/>全程最佳进度：<span id="menu-best-run">1</span>
             </div>
         </div>
 
         <!-- 2. 关卡选择 -->
         <div id="screen-levels" class="overlay hidden">
-            <div class="title" style="font-size: 32px;">Select Level</div>
-            <div class="subtitle">You can play any level you've unlocked.</div>
+            <div class="title" style="font-size: 32px;">选择关卡</div>
+            <div class="subtitle">选择任意已解锁的关卡开始游戏。</div>
             <div id="level-grid">
                 <!-- JS生成 -->
             </div>
-            <button class="secondary" style="width: auto; padding: 10px 30px;" onclick="game.showMenu()">Back</button>
+            <button class="secondary" style="width: auto; padding: 10px 30px;" onclick="game.showMenu()">返回</button>
         </div>
 
         <!-- 3. 规则说明 -->
         <div id="screen-rules" class="overlay hidden">
-            <div class="title" style="font-size: 32px;">How to Play</div>
+            <div class="title" style="font-size: 32px;">玩法说明</div>
             <div class="rules-list">
-                <div><span style="margin-right: 8px;">⌨️</span> Use Arrow Keys to move</div>
-                <div><span style="margin-right: 8px;">🟡</span> Eat all dots to win the level</div>
-                <div><span style="margin-right: 8px;">🟣</span> Eat big Power Pellets to eat ghosts!</div>
-                <div><span style="margin-right: 8px;">👻</span> Avoid ghosts (Lose 1 Life)</div>
-                <div><span style="margin-right: 8px;">❤️</span> You have 3 lives per game</div>
-                <div><span style="margin-right: 8px;">⚡</span> Game gets faster every level</div>
+                <div><span style="margin-right: 8px;">⌨️</span> 使用方向键移动</div>
+                <div><span style="margin-right: 8px;">🟡</span> 吃完所有豆子即可过关</div>
+                <div><span style="margin-right: 8px;">🟣</span> 吃大力丸可以反吃幽灵！</div>
+                <div><span style="margin-right: 8px;">👻</span> 远离幽灵（碰到会失去 1 条命）</div>
+                <div><span style="margin-right: 8px;">❤️</span> 每局有 3 条命</div>
+                <div><span style="margin-right: 8px;">⚡</span> 每一关速度都会更快</div>
+                <div><span style="margin-right: 8px;">🏁</span> 试试全程挑战，从第 1 关跑到第 20 关，冲击你的最佳纪录！</div>
             </div>
-            <button onclick="game.showMenu()">Got it!</button>
+            <button onclick="game.showMenu()">知道了！</button>
         </div>
 
         <!-- 4. 暂停菜单 -->
         <div id="screen-paused" class="overlay glass hidden">
-            <div class="title" style="font-size: 40px;">Paused</div>
+            <div class="title" style="font-size: 40px;">已暂停</div>
             <div class="btn-group">
                 <button onclick="game.resumeGame()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Resume
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> 继续游戏
                 </button>
                 <button class="secondary" onclick="game.restartLevel()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg> Restart Level
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg> 重玩本关
                 </button>
                 <button class="secondary" onclick="game.quitToMenu()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> Main Menu
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> 返回菜单
                 </button>
             </div>
         </div>
 
         <!-- 5. 游戏结束 -->
         <div id="screen-gameover" class="overlay glass hidden">
-            <div class="title" style="color: #ef4444; -webkit-text-fill-color: #ef4444; background: none;">Game Over</div>
-            <div class="subtitle">Final Score: <span id="end-score" style="font-weight: bold; color: #1e293b; font-size: 24px;">0</span></div>
-            <div id="end-run-best" class="subtitle hidden">Best Full Run: <span id="end-run-best-value" style="font-weight: bold; color: #1e293b;">1</span></div>
+            <div class="title" style="color: #ef4444; -webkit-text-fill-color: #ef4444; background: none;">游戏结束</div>
+            <div class="subtitle">最终得分：<span id="end-score" style="font-weight: bold; color: #1e293b; font-size: 24px;">0</span></div>
+            <div id="end-run-best" class="subtitle hidden">全程最佳进度：<span id="end-run-best-value" style="font-weight: bold; color: #1e293b;">1</span></div>
             <div class="btn-group">
                 <button onclick="game.restartGame()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg> Try Again
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg> 再试一次
                 </button>
                 <button class="secondary" onclick="game.quitToMenu()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> Main Menu
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> 返回菜单
                 </button>
             </div>
         </div>
 
         <!-- 5.5 全程模式完成 -->
         <div id="screen-runcomplete" class="overlay glass hidden">
-            <div class="title" style="color: #10b981; -webkit-text-fill-color: #10b981; background: none;">Full Run Clear</div>
-            <div class="subtitle">You reached Level <span id="runcomplete-level">20</span> with Score <span id="runcomplete-score" style="font-weight: bold; color: #1e293b;">0</span></div>
-            <div class="subtitle">Best Full Run: <span id="runcomplete-best" style="font-weight: bold; color: #1e293b;">1</span></div>
+            <div class="title" style="color: #10b981; -webkit-text-fill-color: #10b981; background: none;">全程通关</div>
+            <div class="subtitle">本次到达第 <span id="runcomplete-level">20</span> 关，得分 <span id="runcomplete-score" style="font-weight: bold; color: #1e293b;">0</span></div>
+            <div class="subtitle">全程最佳进度：<span id="runcomplete-best" style="font-weight: bold; color: #1e293b;">1</span></div>
             <div class="btn-group">
                 <button onclick="game.restartGame()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg> Run Again
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg> 再跑一遍
                 </button>
                 <button class="secondary" onclick="game.quitToMenu()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> Main Menu
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> 返回菜单
                 </button>
             </div>
         </div>
 
         <!-- 6. 关卡完成 -->
         <div id="screen-levelup" class="overlay glass hidden">
-            <div class="title" style="color: #10b981; -webkit-text-fill-color: #10b981; background: none;">Level Clear!</div>
-            <div class="subtitle">Next Level: <span id="next-level-num">2</span></div>
+            <div class="title" style="color: #10b981; -webkit-text-fill-color: #10b981; background: none;">关卡完成！</div>
+            <div class="subtitle">下一关：<span id="next-level-num">2</span></div>
         </div>
     </div>
 
@@ -1009,7 +1049,12 @@
             }
 
             restartGame() {
-                this.startNewGame(1, this.mode);
+                // 全程模式从第 1 关重开；普通模式重置当前关卡
+                if (this.mode === 'RUN') {
+                    this.startNewGame(1, 'RUN');
+                } else {
+                    this.restartLevel();
+                }
             }
 
             restartLevel() {
@@ -1039,17 +1084,17 @@
 
                 this.draw(); 
                 const msg = document.getElementById('msg-float');
-                msg.innerText = respawnPellets ? `LEVEL ${this.level}` : "READY"; 
+                msg.innerText = respawnPellets ? `第 ${this.level} 关` : "准备"; 
                 msg.style.display = 'block';
                 
                 setTimeout(() => { 
                     if (this.state !== 'READY') return; // 防止中途退出
-                    if (respawnPellets) msg.innerText = "READY"; 
+                    if (respawnPellets) msg.innerText = "准备"; 
                 }, 1000);
                 
                 setTimeout(() => { 
                     if (this.state !== 'READY') return;
-                    msg.innerText = "GO!"; 
+                    msg.innerText = "开始！"; 
                 }, 2000);
                 
                 setTimeout(() => { 
@@ -1373,10 +1418,10 @@
                 document.getElementById('ui-level').innerText = this.level;
                 const hearts = '❤️'.repeat(Math.max(0, this.lives));
                 document.getElementById('ui-lives').innerText = hearts;
-                document.getElementById('ui-high-score').innerText = `BEST ${this.highScore}`;
+                document.getElementById('ui-high-score').innerText = `最高 ${this.highScore}`;
                 const runBadge = document.getElementById('ui-run-mode');
                 if (this.mode === 'RUN') {
-                    runBadge.innerText = `RUN 1→${RUN_MAX_LEVEL}`;
+                    runBadge.innerText = `全程 1→${RUN_MAX_LEVEL}`;
                     runBadge.classList.remove('hidden');
                 } else {
                     runBadge.classList.add('hidden');
