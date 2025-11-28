@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -41,15 +40,16 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 700px; /* 固定宽度 */
-            transform-origin: top center;
+            width: 100%;
+            max-width: 700px; /* 保持最大宽度 */
+            box-sizing: border-box;
         }
 
+        /* 去掉 scale 变换，让浏览器自然缩放 */
         @media (max-width: 740px) {
             #game-wrapper {
-                /* 计算缩放比例：屏幕宽度 / 740 (预留一些边距) */
-                transform: scale(calc((100vw - 20px) / 700));
-                margin-top: 0;
+                padding: 10px;
+                border-radius: 16px;
             }
         }
 
@@ -57,7 +57,9 @@
             background-color: var(--game-bg);
             border-radius: 16px;
             display: block;
-            cursor: default;
+            cursor: crosshair; /* 改为准星光标，暗示可点击 */
+            width: 100%;
+            height: auto;
         }
 
         /* HUD */
@@ -1515,8 +1517,13 @@
                     if (this.state !== 'PLAYING') return;
                     
                     const rect = this.canvas.getBoundingClientRect();
-                    const mouseX = e.clientX - rect.left;
-                    const mouseY = e.clientY - rect.top;
+                    
+                    // 计算缩放比例：实际画布分辨率 / CSS显示尺寸
+                    const scaleX = this.canvas.width / rect.width;
+                    const scaleY = this.canvas.height / rect.height;
+
+                    const mouseX = (e.clientX - rect.left) * scaleX;
+                    const mouseY = (e.clientY - rect.top) * scaleY;
 
                     // 将像素坐标转换为游戏地图的瓦片坐标
                     const targetTileX = Math.floor(mouseX / TILE_SIZE);
